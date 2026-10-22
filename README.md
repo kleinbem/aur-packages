@@ -14,7 +14,9 @@ just build <pkg>    # clean build in a throwaway archlinux:base-devel container,
 just srcinfo <pkg>  # regenerate .SRCINFO after editing a PKGBUILD
 ```
 
-Packages land in `out/<pkg>/`. Each build starts from a fresh container, so a missing
+Packages land in `out/<pkg>/`. On GitHub, `.github/workflows/build.yml` runs the same build for every
+package directory a push or PR changes (or `gh workflow run build -f pkg=<pkg>`), checks that
+`.SRCINFO` is current and uploads the packages as an artifact. Each build starts from a fresh container, so a missing
 `makedepends` fails here instead of on a user's machine.
 
 For running and testing the result, use an Arch distrobox (`os dx::create-arch` in
