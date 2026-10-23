@@ -18,7 +18,6 @@ pkgbase = skippy-native-runtime-rocm-git
 	depends = libgcc
 	depends = libgomp
 	depends = libstdc++
-	depends = rocblas
 	provides = skippy-native-runtime-rocm
 	conflicts = skippy-native-runtime-rocm
 	options = !lto
