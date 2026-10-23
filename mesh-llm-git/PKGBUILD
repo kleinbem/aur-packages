@@ -18,7 +18,6 @@ makedepends=(
   cmake
   gcc-libs
   git
-  jq
   ninja
   nodejs
   patchelf
@@ -81,17 +80,10 @@ build() {
   for backend in "${_backends[@]}"; do
     env -u SOURCE_DATE_EPOCH \
       bash skippy/scripts/package-native-runtime.sh --build --backend "$backend" \
-      --no-model-package-tool --out "$srcdir/runtimes"
+      --no-model-package-tool --out "$srcdir/runtimes" \
+      --id-suffix arch # tells these bundles from upstream's in `mesh-llm runtime list`
   done
   rm -f "$srcdir"/runtimes/*.tar.gz*
-  # A distinct id, so `mesh-llm runtime list` tells these bundles from upstream's
-  # downloads of the same backend. Replace with --id-suffix once
-  # https://github.com/Mesh-LLM/mesh-llm/pull/2526 is merged.
-  local manifest
-  for manifest in "$srcdir"/runtimes/*/manifest.json; do
-    jq '.runtime.id += "-arch"' "$manifest" > "$manifest.tmp"
-    mv "$manifest.tmp" "$manifest"
-  done
 
   pnpm --dir mesh/crates/mesh-llm-ui build
   cargo build --frozen --release --package mesh-llm --bin mesh-llm
@@ -112,7 +104,7 @@ check() {
 
 _install_runtime() {
   local backend=$1 dir
-  dir=$(echo "$srcdir"/runtimes/meshllm-native-runtime-*-"$backend")
+  dir=$(echo "$srcdir"/runtimes/meshllm-native-runtime-*-"$backend"-arch)
   [[ -f $dir/manifest.json ]] || { echo "no $backend runtime in $srcdir/runtimes" >&2; return 1; }
   install -d "$pkgdir/usr/lib/mesh-llm/native-runtimes"
   cp -a "$dir" "$pkgdir/usr/lib/mesh-llm/native-runtimes/"

@@ -7,13 +7,13 @@ the package directories.
 
 | Package | nixpkgs commit | Date |
 |---|---|---|
-| mesh-llm-git | `mesh-llm-next` 5e86254a86bb1ca0b4097a69deac78b6f3f56865 | 2026-10-22 |
+| mesh-llm-git | `mesh-llm-next` d88da34b0d9523d4e3beb5e5c55ff8914894c38c | 2026-10-23 |
 
 What changed in nixpkgs since then:
 
 ```sh
 git -C ~/Develop/github.com/NixOS/nixpkgs.wt-079-prep fetch origin mesh-llm-next
-git -C ~/Develop/github.com/NixOS/nixpkgs.wt-079-prep diff 5e86254a86bb FETCH_HEAD -- \
+git -C ~/Develop/github.com/NixOS/nixpkgs.wt-079-prep diff d88da34b0d95 FETCH_HEAD -- \
   pkgs/by-name/me/mesh-llm pkgs/by-name/sk/skippy pkgs/by-name/sk/skippy-native-runtime \
   nixos/modules/services/misc/mesh-llm.nix nixos/tests/mesh-llm.nix
 ```
