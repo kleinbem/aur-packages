@@ -1,0 +1,65 @@
+# Maintainer: Martin Kleinberger <martin dot kleinberger at gmail dot com>
+
+pkgname=skippy-native-runtime-rocm-git
+pkgver=0.78.0.r0.g0000000
+pkgrel=1
+pkgdesc="Patched llama.cpp libraries that Skippy and MeshLLM load, ROCm backend (git main)"
+arch=(x86_64)
+url="https://github.com/Mesh-LLM/mesh-llm"
+license=('MIT AND (Apache-2.0 OR MIT)')
+depends=(glibc hip-runtime-amd hipblas libgcc libgomp libstdc++ rocblas)
+makedepends=(cargo cmake git ninja patchelf python rocm-toolchain)
+provides=(skippy-native-runtime-rocm)
+conflicts=(skippy-native-runtime-rocm)
+# !strip: the bundle's manifest.json checksums every library.
+options=(!lto !strip !debug)
+source=(
+  "mesh-llm::git+https://github.com/Mesh-LLM/mesh-llm.git"
+  "llama.cpp::git+https://github.com/ggml-org/llama.cpp.git"
+)
+sha256sums=(SKIP SKIP)
+
+# GPU targets of upstream's ROCm release runtime (release.yml).
+_amdgpu_targets='gfx90a;gfx942;gfx1100;gfx1101;gfx1102;gfx1103;gfx1151;gfx1200;gfx1201'
+
+pkgver() {
+  cd mesh-llm
+  local ver
+  ver=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+  printf "%s.r%s.g%s" "$ver" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+prepare() {
+  cd mesh-llm
+  # Upstream's cargo config routes builds through sccache and its own linker
+  # drivers; keep only the xtool alias that the runtime script uses.
+  sed -i -e '/^rustc-wrapper/d' -e '/^linker = "scripts\/cargo-linker/d' .cargo/config.toml
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+  cd mesh-llm
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  export ROCM_PATH=/opt/rocm
+  export HIPCC=/opt/rocm/bin/hipcc
+  export PATH="/opt/rocm/bin:$PATH"
+  export LLAMA_STAGE_AMDGPU_TARGETS="$_amdgpu_targets"
+  export LLAMA_UPSTREAM_URL="$srcdir/llama.cpp"
+  export LLAMA_WORKDIR="$srcdir/llama-work"
+  export MESH_LLM_NATIVE_RUNTIME_RANK=1000 # prefer the packaged runtime over downloads
+  # ggml turns off every x86 SIMD default when SOURCE_DATE_EPOCH is set, which
+  # makepkg does; without it the CPU part matches upstream's release builds.
+  env -u SOURCE_DATE_EPOCH \
+    bash skippy/scripts/package-native-runtime.sh --build --backend rocm \
+    --no-model-package-tool --out "$srcdir/runtimes" \
+    --id-suffix arch # tells this bundle from upstream's in `mesh-llm runtime list`
+  rm -f "$srcdir"/runtimes/*.tar.gz*
+}
+
+package() {
+  install -d "$pkgdir/usr/lib/mesh-llm/native-runtimes"
+  cp -a "$srcdir"/runtimes/meshllm-native-runtime-*-rocm*-arch "$pkgdir/usr/lib/mesh-llm/native-runtimes/"
+  install -Dm644 "$srcdir/mesh-llm/LICENSE" -t "$pkgdir/usr/share/licenses/$pkgname"
+}

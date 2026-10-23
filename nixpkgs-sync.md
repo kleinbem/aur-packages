@@ -8,6 +8,8 @@ the package directories.
 | Package | nixpkgs commit | Date |
 |---|---|---|
 | mesh-llm-git | `mesh-llm-next` d88da34b0d9523d4e3beb5e5c55ff8914894c38c | 2026-10-23 |
+| skippy-native-runtime-cuda-git | `mesh-llm-next` d88da34b0d9523d4e3beb5e5c55ff8914894c38c | 2026-10-23 |
+| skippy-native-runtime-rocm-git | `mesh-llm-next` d88da34b0d9523d4e3beb5e5c55ff8914894c38c | 2026-10-23 |
 
 What changed in nixpkgs since then:
 
