@@ -12,7 +12,6 @@ pkgbase = mesh-llm-git
 	makedepends = cmake
 	makedepends = gcc-libs
 	makedepends = git
-	makedepends = jq
 	makedepends = ninja
 	makedepends = nodejs
 	makedepends = patchelf
