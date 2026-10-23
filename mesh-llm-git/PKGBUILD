@@ -102,12 +102,26 @@ check() {
   target/release/skippy --version
 }
 
+# The bundle stores each soname (libfoo.so, .so.0, .so.0.27.0) as a full copy.
+# The manifest check follows symlinks inside the bundle, so link the duplicates.
+_link_sonames() {
+  local f t
+  for f in "$1"/lib/lib*.so "$1"/lib/lib*.so.[0-9]; do
+    [[ -f $f && ! -L $f ]] || continue
+    t=$(ls "$f".* 2>/dev/null | sort -V | tail -1)
+    if [[ -n $t ]] && cmp -s "$f" "$t"; then
+      ln -sf "${t##*/}" "$f"
+    fi
+  done
+}
+
 _install_runtime() {
   local backend=$1 dir
   dir=$(echo "$srcdir"/runtimes/meshllm-native-runtime-*-"$backend"-arch)
   [[ -f $dir/manifest.json ]] || { echo "no $backend runtime in $srcdir/runtimes" >&2; return 1; }
   install -d "$pkgdir/usr/lib/mesh-llm/native-runtimes"
   cp -a "$dir" "$pkgdir/usr/lib/mesh-llm/native-runtimes/"
+  _link_sonames "$pkgdir/usr/lib/mesh-llm/native-runtimes/${dir##*/}"
   install -Dm644 "$srcdir/mesh-llm/LICENSE" -t "$pkgdir/usr/share/licenses/$pkgname"
 }
 

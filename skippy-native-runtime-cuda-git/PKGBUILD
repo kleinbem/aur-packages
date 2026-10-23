@@ -7,10 +7,12 @@ pkgdesc="Patched llama.cpp libraries that Skippy and MeshLLM load, CUDA backend 
 arch=(x86_64)
 url="https://github.com/Mesh-LLM/mesh-llm"
 # llama.cpp is MIT, MeshLLM's patches MIT or Apache-2.0; the bundle carries
-# NVIDIA's CUDA runtime libraries under their license (licenses/ in the bundle).
+# NVIDIA's CUDA runtime libraries (cudart, cuBLAS) under their license.
 license=('MIT AND (Apache-2.0 OR MIT) AND LicenseRef-NVIDIA-CUDA')
-depends=(cuda glibc libgcc libgomp libstdc++)
-makedepends=(cargo cmake git ninja patchelf python)
+# The bundle carries cudart and cuBLAS (RUNPATH $ORIGIN); only the driver's
+# libcuda.so.1 comes from the system.
+depends=(glibc libgcc libgomp libstdc++ nvidia-utils)
+makedepends=(cargo cmake cuda git ninja patchelf python)
 provides=(skippy-native-runtime-cuda)
 conflicts=(skippy-native-runtime-cuda)
 # !strip: the bundle's manifest.json checksums every library.
@@ -59,8 +61,25 @@ build() {
   rm -f "$srcdir"/runtimes/*.tar.gz*
 }
 
+# The bundle stores each soname (libfoo.so, .so.0, .so.0.27.0) as a full copy.
+# The manifest check follows symlinks inside the bundle, so link the duplicates.
+_link_sonames() {
+  local f t
+  for f in "$1"/lib/lib*.so "$1"/lib/lib*.so.[0-9]; do
+    [[ -f $f && ! -L $f ]] || continue
+    t=$(ls "$f".* 2>/dev/null | sort -V | tail -1)
+    if [[ -n $t ]] && cmp -s "$f" "$t"; then
+      ln -sf "${t##*/}" "$f"
+    fi
+  done
+}
+
 package() {
   install -d "$pkgdir/usr/lib/mesh-llm/native-runtimes"
-  cp -a "$srcdir"/runtimes/meshllm-native-runtime-*-cuda*-arch "$pkgdir/usr/lib/mesh-llm/native-runtimes/"
+  local dir
+  dir=$(echo "$srcdir"/runtimes/meshllm-native-runtime-*-cuda*-arch)
+  cp -a "$dir" "$pkgdir/usr/lib/mesh-llm/native-runtimes/"
+  _link_sonames "$pkgdir/usr/lib/mesh-llm/native-runtimes/${dir##*/}"
   install -Dm644 "$srcdir/mesh-llm/LICENSE" -t "$pkgdir/usr/share/licenses/$pkgname"
+  install -Dm644 "$dir/licenses/NVIDIA-CUDA-LICENSE.txt" -t "$pkgdir/usr/share/licenses/$pkgname"
 }
