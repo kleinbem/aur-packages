@@ -1,0 +1,169 @@
+# Maintainer: Martin Kleinberger <martin dot kleinberger at gmail dot com>
+
+pkgbase=mesh-llm-git
+pkgname=(
+  mesh-llm-git
+  skippy-git
+  skippy-native-runtime-git
+  skippy-native-runtime-vulkan-git
+)
+pkgver=0.78.0.r0.g0000000
+pkgrel=1
+pkgdesc="Pool spare GPU capacity to run LLMs at larger scale (git main)"
+arch=(x86_64 aarch64)
+url="https://github.com/Mesh-LLM/mesh-llm"
+license=('Apache-2.0 OR MIT')
+makedepends=(
+  cargo
+  cmake
+  gcc-libs
+  git
+  ninja
+  nodejs
+  patchelf
+  pnpm
+  protobuf
+  python
+  # Vulkan runtime
+  shaderc
+  spirv-headers
+  vulkan-headers
+  vulkan-icd-loader
+)
+checkdepends=(curl python)
+# !debug: upstream's release profile (thin LTO, one codegen unit) plus debuginfo
+# needs more than 16 GB of RAM to link mesh-llm.
+options=(!lto !debug)
+# mesh-llm pins and patches its own llama.cpp; the pin is applied in prepare().
+source=(
+  "mesh-llm::git+https://github.com/Mesh-LLM/mesh-llm.git"
+  "llama.cpp::git+https://github.com/ggml-org/llama.cpp.git"
+)
+sha256sums=(SKIP SKIP)
+
+# Runtime backends built from this pkgbase. CUDA and ROCm come later as their own packages.
+_backends=(cpu vulkan)
+
+pkgver() {
+  cd mesh-llm
+  local ver
+  ver=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+  printf "%s.r%s.g%s" "$ver" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+prepare() {
+  cd mesh-llm
+  # Upstream's cargo config routes builds through sccache and its own linker
+  # drivers; keep only the xtool alias that the runtime script uses.
+  sed -i -e '/^rustc-wrapper/d' -e '/^linker = "scripts\/cargo-linker/d' .cargo/config.toml
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc --print host-tuple)"
+  pnpm --dir mesh/crates/mesh-llm-ui install --frozen-lockfile
+}
+
+build() {
+  cd mesh-llm
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  export AWS_LC_SYS_CMAKE_BUILDER=1
+  export PROTOC=/usr/bin/protoc
+
+  # Native runtimes: upstream's script applies the patch queue to the pinned
+  # llama.cpp (from the local clone, no network), builds and packages it.
+  export LLAMA_UPSTREAM_URL="$srcdir/llama.cpp"
+  export LLAMA_WORKDIR="$srcdir/llama-work"
+  export MESH_LLM_NATIVE_RUNTIME_RANK=1000 # prefer the packaged runtime over downloads
+  # ggml turns off every x86 SIMD default (AVX, AVX2, FMA, ...) when
+  # SOURCE_DATE_EPOCH is set, which makepkg does; without it the libraries
+  # match upstream's release builds.
+  local backend
+  for backend in "${_backends[@]}"; do
+    env -u SOURCE_DATE_EPOCH \
+      bash skippy/scripts/package-native-runtime.sh --build --backend "$backend" \
+      --no-model-package-tool --out "$srcdir/runtimes" \
+      --id-suffix arch # tells these bundles from upstream's in `mesh-llm runtime list`
+  done
+  rm -f "$srcdir"/runtimes/*.tar.gz*
+
+  pnpm --dir mesh/crates/mesh-llm-ui build
+  cargo build --frozen --release --package mesh-llm --bin mesh-llm
+  cargo build --frozen --release --package skippy-cli --bin skippy --features dynamic-native-runtime
+}
+
+check() {
+  cd mesh-llm
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  export AWS_LC_SYS_CMAKE_BUILDER=1
+  export PROTOC=/usr/bin/protoc
+  cargo test --frozen --package mesh-llm
+  cargo test --frozen --package skippy-cli --features dynamic-native-runtime
+  target/release/mesh-llm --version
+  target/release/skippy --version
+}
+
+# The bundle stores each soname (libfoo.so, .so.0, .so.0.27.0) as a full copy.
+# The manifest check follows symlinks inside the bundle, so link the duplicates.
+_link_sonames() {
+  local f t
+  for f in "$1"/lib/lib*.so "$1"/lib/lib*.so.[0-9]; do
+    [[ -f $f && ! -L $f ]] || continue
+    t=$(ls "$f".* 2>/dev/null | sort -V | tail -1)
+    if [[ -n $t ]] && cmp -s "$f" "$t"; then
+      ln -sf "${t##*/}" "$f"
+    fi
+  done
+}
+
+_install_runtime() {
+  local backend=$1 dir
+  dir=$(echo "$srcdir"/runtimes/meshllm-native-runtime-*-"$backend"-arch)
+  [[ -f $dir/manifest.json ]] || { echo "no $backend runtime in $srcdir/runtimes" >&2; return 1; }
+  install -d "$pkgdir/usr/lib/mesh-llm/native-runtimes"
+  cp -a "$dir" "$pkgdir/usr/lib/mesh-llm/native-runtimes/"
+  _link_sonames "$pkgdir/usr/lib/mesh-llm/native-runtimes/${dir##*/}"
+  install -Dm644 "$srcdir/mesh-llm/LICENSE" -t "$pkgdir/usr/share/licenses/$pkgname"
+}
+
+package_mesh-llm-git() {
+  depends=(glibc libgcc skippy-native-runtime-git)
+  optdepends=('skippy-native-runtime-vulkan-git: Vulkan GPU inference')
+  provides=(mesh-llm)
+  # The current AUR release packages each install /usr/bin/mesh-llm.
+  conflicts=(mesh-llm mesh-llm-cuda mesh-llm-rocm mesh-llm-vulkan)
+  cd mesh-llm
+  install -Dm755 target/release/mesh-llm -t "$pkgdir/usr/bin"
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+}
+
+package_skippy-git() {
+  pkgdesc="Single-model LLM server with OpenAI and Anthropic APIs, from MeshLLM (git main)"
+  depends=(glibc libgcc skippy-native-runtime-git)
+  optdepends=('skippy-native-runtime-vulkan-git: Vulkan GPU inference')
+  provides=(skippy)
+  conflicts=(skippy)
+  cd mesh-llm
+  install -Dm755 target/release/skippy -t "$pkgdir/usr/bin"
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+}
+
+package_skippy-native-runtime-git() {
+  pkgdesc="Patched llama.cpp libraries that Skippy and MeshLLM load, CPU backend (git main)"
+  license=('MIT AND (Apache-2.0 OR MIT)')
+  depends=(glibc libgcc libgomp libstdc++)
+  provides=(skippy-native-runtime)
+  conflicts=(skippy-native-runtime)
+  # The bundle's manifest.json checksums every library; stripping would break it.
+  options=(!strip)
+  _install_runtime cpu
+}
+
+package_skippy-native-runtime-vulkan-git() {
+  pkgdesc="Patched llama.cpp libraries that Skippy and MeshLLM load, Vulkan backend (git main)"
+  license=('MIT AND (Apache-2.0 OR MIT)')
+  depends=(glibc libgcc libgomp libstdc++ vulkan-icd-loader)
+  provides=(skippy-native-runtime-vulkan)
+  conflicts=(skippy-native-runtime-vulkan)
+  options=(!strip)
+  _install_runtime vulkan
+}
