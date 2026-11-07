@@ -21,7 +21,8 @@ permissions:
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer PR push supersedes the old build; every main push builds.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   packages:
@@ -40,12 +41,19 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
+          all=$(git ls-files '*/PKGBUILD' | xargs -r -n1 dirname)
           if [ "$EVENT" = workflow_dispatch ]; then
             dirs="$PKG"
           elif [ -z "$BASE" ] || [ "$BASE" = 0000000000000000000000000000000000000000 ]; then
-            dirs=$(git ls-files '*/PKGBUILD' | xargs -r -n1 dirname)
+            dirs=$all
+          # A force-push can leave BASE outside the history: build everything.
+          elif ! changed=$(git diff --name-only "$BASE" HEAD); then
+            dirs=$all
+          # The shared build scripts affect every package.
+          elif grep -qE '^(scripts/|justfile$)' <<<"$changed"; then
+            dirs=$all
           else
-            dirs=$(git diff --name-only "$BASE" HEAD | cut -d/ -f1 | sort -u)
+            dirs=$(cut -d/ -f1 <<<"$changed" | sort -u)
           fi
           list=$(for d in $dirs; do if [ -f "$d/PKGBUILD" ]; then echo "$d"; fi; done | jq -Rnc '[inputs | select(length > 0)]')
           echo "list=$list" >> "$GITHUB_OUTPUT"
@@ -76,7 +84,11 @@ jobs:
           PKG: ${{ matrix.pkg }}
         run: |
           just srcinfo "$PKG"
-          git diff --exit-code -- "$PKG/.SRCINFO" || { echo "::error::regenerate $PKG/.SRCINFO (just srcinfo $PKG)"; exit 1; }
+          # --porcelain also catches a .SRCINFO that was never committed.
+          if [ -n "$(git status --porcelain -- "$PKG/.SRCINFO")" ]; then
+            echo "::error::regenerate $PKG/.SRCINFO (just srcinfo $PKG)"
+            exit 1
+          fi
       - name: Build
         env:
           PKG: ${{ matrix.pkg }}
