@@ -19,10 +19,11 @@ on:
 permissions:
   contents: read
 
+# A newer PR push supersedes the old build; every main push gets its own group,
+# as a shared one keeps only the newest pending run.
 concurrency:
-  group: build-${{ github.ref }}
-  # A newer PR push supersedes the old build; every main push builds.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: build-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   packages:
