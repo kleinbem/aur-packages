@@ -1,0 +1,6 @@
+# makepkg output
+out/
+*/src/
+*/pkg/
+*.pkg.tar.*
+*.log
