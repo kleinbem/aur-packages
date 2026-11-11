@@ -83,6 +83,8 @@ jobs:
       # for the DNS failure; related: actions/runner-images#15040.
       - name: Install just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+        with:
+          just-version: 1.59.0
       - name: .SRCINFO is current
         env:
           PKG: ${{ matrix.pkg }}
