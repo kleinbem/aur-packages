@@ -79,7 +79,8 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
       # From just's GitHub releases: the runners' Ubuntu mirror often fails
-      # to resolve (azure.archive.ubuntu.com).
+      # to resolve (azure.archive.ubuntu.com). no-link: no runner-images issue
+      # for the DNS failure; related: actions/runner-images#15040.
       - name: Install just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - name: .SRCINFO is current
