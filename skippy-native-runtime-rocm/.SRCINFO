@@ -1,0 +1,29 @@
+pkgbase = skippy-native-runtime-rocm
+	pkgdesc = Patched llama.cpp libraries that Skippy and MeshLLM load, ROCm backend
+	pkgver = 0.79.0
+	pkgrel = 1
+	url = https://github.com/Mesh-LLM/mesh-llm
+	arch = x86_64
+	license = MIT AND (Apache-2.0 OR MIT)
+	makedepends = cargo
+	makedepends = cmake
+	makedepends = git
+	makedepends = ninja
+	makedepends = patchelf
+	makedepends = python
+	makedepends = rocm-toolchain
+	depends = glibc
+	depends = hip-runtime-amd
+	depends = hipblas
+	depends = libgcc
+	depends = libgomp
+	depends = libstdc++
+	options = !lto
+	options = !strip
+	options = !debug
+	source = mesh-llm-0.79.0.tar.gz::https://github.com/Mesh-LLM/mesh-llm/archive/refs/tags/v0.79.0.tar.gz
+	source = llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=b12199
+	sha256sums = 60666ab66e50844a658ac0dbbdd9ad206ef7927275e6050619f1634ba96ab569
+	sha256sums = ff9169018a2b8a3221c114db0291ab44f010ef68dd9eb7ef9fa9ddc02ab37e43
+
+pkgname = skippy-native-runtime-rocm
