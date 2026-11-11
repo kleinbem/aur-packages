@@ -79,7 +79,8 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
       - name: Install just
-        run: sudo apt-get install -y --no-install-recommends just
+        # The runner image's package index goes stale; install from a fresh one.
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends just
       - name: .SRCINFO is current
         env:
           PKG: ${{ matrix.pkg }}
