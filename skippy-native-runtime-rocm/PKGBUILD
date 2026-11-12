@@ -25,23 +25,32 @@ sha256sums=('60666ab66e50844a658ac0dbbdd9ad206ef7927275e6050619f1634ba96ab569'
 # GPU targets of upstream's ROCm release runtime (release.yml).
 _amdgpu_targets='gfx90a;gfx942;gfx1100;gfx1101;gfx1102;gfx1103;gfx1151;gfx1200;gfx1201'
 
+_cargo_env() {
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  # Upstream's cargo config builds through sccache and its own linker drivers;
+  # these override it with plain rustc and cc.
+  # no-link: upstream keeps both in its config on purpose.
+  export CARGO_BUILD_RUSTC_WRAPPER=
+  local triple
+  triple=$(rustc --print host-tuple)
+  triple=${triple//-/_}
+  export "CARGO_TARGET_${triple^^}_LINKER=cc"
+}
+
 prepare() {
   cd "mesh-llm-$pkgver"
   [[ $(< skippy/llama_cpp/upstream.txt) == "$(git -C "$srcdir/llama.cpp" rev-parse HEAD)" ]] || {
     echo "llama.cpp $_llamacpp is not the commit in skippy/llama_cpp/upstream.txt" >&2
     return 1
   }
-  # Upstream's cargo config routes builds through sccache and its own linker
-  # drivers; keep only the xtool alias that the runtime script uses.
-  sed -i -e '/^rustc-wrapper/d' -e '/^linker = "scripts\/cargo-linker/d' .cargo/config.toml
-  export RUSTUP_TOOLCHAIN=stable
+  _cargo_env
   cargo fetch --locked --target "$(rustc --print host-tuple)"
 }
 
 build() {
   cd "mesh-llm-$pkgver"
-  export RUSTUP_TOOLCHAIN=stable
-  export CARGO_TARGET_DIR=target
+  _cargo_env
   export ROCM_PATH=/opt/rocm
   export HIPCC=/opt/rocm/bin/hipcc
   export PATH="/opt/rocm/bin:$PATH"

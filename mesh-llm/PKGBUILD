@@ -48,26 +48,35 @@ sha256sums=('60666ab66e50844a658ac0dbbdd9ad206ef7927275e6050619f1634ba96ab569'
 # Runtime backends built from this pkgbase; CUDA and ROCm have their own.
 _backends=(cpu vulkan)
 
+_cargo_env() {
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  export AWS_LC_SYS_CMAKE_BUILDER=1
+  export PROTOC=/usr/bin/protoc
+  # Upstream's cargo config builds through sccache and its own linker drivers;
+  # these override it with plain rustc and cc.
+  # no-link: upstream keeps both in its config on purpose.
+  export CARGO_BUILD_RUSTC_WRAPPER=
+  local triple
+  triple=$(rustc --print host-tuple)
+  triple=${triple//-/_}
+  export "CARGO_TARGET_${triple^^}_LINKER=cc"
+}
+
 prepare() {
   cd "$pkgbase-$pkgver"
   [[ $(< skippy/llama_cpp/upstream.txt) == "$(git -C "$srcdir/llama.cpp" rev-parse HEAD)" ]] || {
     echo "llama.cpp $_llamacpp is not the commit in skippy/llama_cpp/upstream.txt" >&2
     return 1
   }
-  # Upstream's cargo config routes builds through sccache and its own linker
-  # drivers; keep only the xtool alias that the runtime script uses.
-  sed -i -e '/^rustc-wrapper/d' -e '/^linker = "scripts\/cargo-linker/d' .cargo/config.toml
-  export RUSTUP_TOOLCHAIN=stable
+  _cargo_env
   cargo fetch --locked --target "$(rustc --print host-tuple)"
   pnpm --dir mesh/crates/mesh-llm-ui install --frozen-lockfile
 }
 
 build() {
   cd "$pkgbase-$pkgver"
-  export RUSTUP_TOOLCHAIN=stable
-  export CARGO_TARGET_DIR=target
-  export AWS_LC_SYS_CMAKE_BUILDER=1
-  export PROTOC=/usr/bin/protoc
+  _cargo_env
 
   # Native runtimes: upstream's script applies the patch queue to the pinned
   # llama.cpp (from the local clone, no network), builds and packages it.
@@ -93,10 +102,7 @@ build() {
 
 check() {
   cd "$pkgbase-$pkgver"
-  export RUSTUP_TOOLCHAIN=stable
-  export CARGO_TARGET_DIR=target
-  export AWS_LC_SYS_CMAKE_BUILDER=1
-  export PROTOC=/usr/bin/protoc
+  _cargo_env
   cargo test --frozen --package mesh-llm
   cargo test --frozen --package skippy-cli --features dynamic-native-runtime
   target/release/mesh-llm --version | grep -F "$pkgver"
