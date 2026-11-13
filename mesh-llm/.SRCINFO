@@ -1,0 +1,77 @@
+pkgbase = mesh-llm
+	pkgdesc = Pool spare GPU capacity to run LLMs at larger scale
+	pkgver = 0.79.0
+	pkgrel = 1
+	url = https://github.com/Mesh-LLM/mesh-llm
+	arch = x86_64
+	arch = aarch64
+	license = Apache-2.0 OR MIT
+	checkdepends = curl
+	checkdepends = python
+	makedepends = cargo
+	makedepends = cmake
+	makedepends = gcc-libs
+	makedepends = git
+	makedepends = ninja
+	makedepends = nodejs
+	makedepends = patchelf
+	makedepends = pnpm
+	makedepends = protobuf
+	makedepends = python
+	makedepends = shaderc
+	makedepends = spirv-headers
+	makedepends = vulkan-headers
+	makedepends = vulkan-icd-loader
+	options = !lto
+	options = !debug
+	source = mesh-llm-0.79.0.tar.gz::https://github.com/Mesh-LLM/mesh-llm/archive/refs/tags/v0.79.0.tar.gz
+	source = llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=b12199
+	source = whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=231638a0717b7822784297e5980965ffcec05810
+	sha256sums = 60666ab66e50844a658ac0dbbdd9ad206ef7927275e6050619f1634ba96ab569
+	sha256sums = ff9169018a2b8a3221c114db0291ab44f010ef68dd9eb7ef9fa9ddc02ab37e43
+	sha256sums = 54a11fee8f24cce21f11abdbc0695776736189beb15ba4e21a35dac97e3bf442
+
+pkgname = mesh-llm
+	depends = glibc
+	depends = libgcc
+	depends = skippy-native-runtime=0.79.0
+	optdepends = skippy-native-runtime-vulkan: Vulkan GPU inference
+	optdepends = skippy-native-runtime-cuda: NVIDIA CUDA GPU inference
+	optdepends = skippy-native-runtime-rocm: AMD ROCm GPU inference
+	conflicts = mesh-llm-cuda
+	conflicts = mesh-llm-rocm
+	conflicts = mesh-llm-vulkan
+
+pkgname = skippy
+	pkgdesc = Single-model LLM server with OpenAI and Anthropic APIs, from MeshLLM
+	depends = glibc
+	depends = libgcc
+	depends = skippy-native-runtime=0.79.0
+	optdepends = skippy-native-runtime-vulkan: Vulkan GPU inference
+	optdepends = skippy-native-runtime-cuda: NVIDIA CUDA GPU inference
+	optdepends = skippy-native-runtime-rocm: AMD ROCm GPU inference
+
+pkgname = skippy-native-runtime
+	pkgdesc = Patched llama.cpp libraries that Skippy and MeshLLM load, CPU backend
+	install = skippy-native-runtime.install
+	license = MIT AND (Apache-2.0 OR MIT)
+	depends = glibc
+	depends = libgcc
+	depends = libgomp
+	depends = libstdc++
+	options = !strip
+
+pkgname = skippy-native-runtime-vulkan
+	pkgdesc = Patched llama.cpp libraries that Skippy and MeshLLM load, Vulkan backend
+	install = skippy-native-runtime.install
+	license = MIT AND (Apache-2.0 OR MIT)
+	depends = glibc
+	depends = libgcc
+	depends = libgomp
+	depends = libstdc++
+	depends = vulkan-icd-loader
+	conflicts = mesh-llm<0.79.0
+	conflicts = mesh-llm>0.79.0
+	conflicts = skippy<0.79.0
+	conflicts = skippy>0.79.0
+	options = !strip
