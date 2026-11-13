@@ -13,18 +13,26 @@ license=('MIT AND (Apache-2.0 OR MIT) AND LicenseRef-NVIDIA-CUDA')
 # libcuda.so.1 comes from the system.
 depends=(glibc libgcc libgomp libstdc++ nvidia-utils)
 makedepends=(cargo cmake cuda git ninja patchelf python)
-# !strip: the bundle's manifest.json checksums every library.
+# !strip: the bundle's manifest.json checksums every library. !debug: with
+# !strip, the debuginfo would stay in the libraries.
 options=(!lto !strip !debug)
+# MeshLLM only loads a runtime of its own version.
+conflicts=("mesh-llm<$pkgver" "mesh-llm>$pkgver" "skippy<$pkgver" "skippy>$pkgver")
+install=skippy-native-runtime.install
 # MeshLLM needs llama.cpp at the release it pins (skippy/llama_cpp/upstream.txt)
 # plus its patch queue, applied with git, so the runtimes are built here rather
 # than from a generic llama.cpp package (nixpkgs' skippy-native-runtime does the same).
 _llamacpp=b12199
+# Speech recognition builds whisper.cpp at the commit upstream pins.
+_whisper=231638a0717b7822784297e5980965ffcec05810
 source=(
   "mesh-llm-$pkgver.tar.gz::https://github.com/Mesh-LLM/mesh-llm/archive/refs/tags/v$pkgver.tar.gz"
   "llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=$_llamacpp"
+  "whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=$_whisper"
 )
 sha256sums=('60666ab66e50844a658ac0dbbdd9ad206ef7927275e6050619f1634ba96ab569'
-            'ff9169018a2b8a3221c114db0291ab44f010ef68dd9eb7ef9fa9ddc02ab37e43')
+            'ff9169018a2b8a3221c114db0291ab44f010ef68dd9eb7ef9fa9ddc02ab37e43'
+            '54a11fee8f24cce21f11abdbc0695776736189beb15ba4e21a35dac97e3bf442')
 
 # GPU architectures of upstream's CUDA 13 release runtime (release.yml).
 _cuda_architectures='75;80;86;87;89;90;100;103;120;121'
@@ -48,6 +56,10 @@ prepare() {
     echo "llama.cpp $_llamacpp is not the commit in skippy/llama_cpp/upstream.txt" >&2
     return 1
   }
+  [[ $(< skippy/llama_cpp/whisper-upstream.txt) == "$_whisper" ]] || {
+    echo "whisper.cpp $_whisper is not the commit in skippy/llama_cpp/whisper-upstream.txt" >&2
+    return 1
+  }
   _cargo_env
   cargo fetch --locked --target "$(rustc --print host-tuple)"
 }
@@ -60,9 +72,13 @@ build() {
   export LLAMA_STAGE_CUDA_ARCHITECTURES="$_cuda_architectures"
   export LLAMA_UPSTREAM_URL="$srcdir/llama.cpp"
   export LLAMA_WORKDIR="$srcdir/llama-work"
+  export WHISPER_UPSTREAM_URL="$srcdir/whisper.cpp"
+  export WHISPER_WORKDIR="$srcdir/whisper-work"
   export MESH_LLM_NATIVE_RUNTIME_RANK=1000 # prefer the packaged runtime over downloads
   # ggml turns off every x86 SIMD default when SOURCE_DATE_EPOCH is set, which
-  # makepkg does; without it the CPU part matches upstream's release builds.
+  # makepkg does; without it the CPU part matches upstream's release builds,
+  # which need AVX2 (Mesh-LLM/mesh-llm#2691).
+  # no-link: ggml does this on purpose for reproducible builds.
   env -u SOURCE_DATE_EPOCH \
     bash skippy/scripts/package-native-runtime.sh --build --backend cuda \
     --no-model-package-tool --out "$srcdir/runtimes" \
@@ -72,6 +88,7 @@ build() {
 
 # The bundle stores each soname (libfoo.so, .so.0, .so.0.27.0) as a full copy.
 # The manifest check follows symlinks inside the bundle, so link the duplicates.
+# upstream: Mesh-LLM/mesh-llm#3042
 _link_sonames() {
   local f t
   for f in "$1"/lib/lib*.so "$1"/lib/lib*.so.[0-9]; do

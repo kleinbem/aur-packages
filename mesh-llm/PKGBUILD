@@ -33,17 +33,22 @@ makedepends=(
 checkdepends=(curl python)
 # !debug: upstream's release profile (thin LTO, one codegen unit) plus debuginfo
 # needs more than 16 GB of RAM to link mesh-llm.
+# no-link: upstream builds without debuginfo, so its builds don't hit this.
 options=(!lto !debug)
 # MeshLLM needs llama.cpp at the release it pins (skippy/llama_cpp/upstream.txt)
 # plus its patch queue, applied with git, so the runtimes are built here rather
 # than from a generic llama.cpp package (nixpkgs' skippy-native-runtime does the same).
 _llamacpp=b12199
+# Speech recognition builds whisper.cpp at the commit upstream pins.
+_whisper=231638a0717b7822784297e5980965ffcec05810
 source=(
   "$pkgbase-$pkgver.tar.gz::https://github.com/Mesh-LLM/mesh-llm/archive/refs/tags/v$pkgver.tar.gz"
   "llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=$_llamacpp"
+  "whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=$_whisper"
 )
 sha256sums=('60666ab66e50844a658ac0dbbdd9ad206ef7927275e6050619f1634ba96ab569'
-            'ff9169018a2b8a3221c114db0291ab44f010ef68dd9eb7ef9fa9ddc02ab37e43')
+            'ff9169018a2b8a3221c114db0291ab44f010ef68dd9eb7ef9fa9ddc02ab37e43'
+            '54a11fee8f24cce21f11abdbc0695776736189beb15ba4e21a35dac97e3bf442')
 
 # Runtime backends built from this pkgbase; CUDA and ROCm have their own.
 _backends=(cpu vulkan)
@@ -69,6 +74,10 @@ prepare() {
     echo "llama.cpp $_llamacpp is not the commit in skippy/llama_cpp/upstream.txt" >&2
     return 1
   }
+  [[ $(< skippy/llama_cpp/whisper-upstream.txt) == "$_whisper" ]] || {
+    echo "whisper.cpp $_whisper is not the commit in skippy/llama_cpp/whisper-upstream.txt" >&2
+    return 1
+  }
   _cargo_env
   cargo fetch --locked --target "$(rustc --print host-tuple)"
   pnpm --dir mesh/crates/mesh-llm-ui install --frozen-lockfile
@@ -79,13 +88,17 @@ build() {
   _cargo_env
 
   # Native runtimes: upstream's script applies the patch queue to the pinned
-  # llama.cpp (from the local clone, no network), builds and packages it.
+  # llama.cpp, builds it with the pinned whisper.cpp (both from the local
+  # clones, no network) and packages it.
   export LLAMA_UPSTREAM_URL="$srcdir/llama.cpp"
   export LLAMA_WORKDIR="$srcdir/llama-work"
+  export WHISPER_UPSTREAM_URL="$srcdir/whisper.cpp"
+  export WHISPER_WORKDIR="$srcdir/whisper-work"
   export MESH_LLM_NATIVE_RUNTIME_RANK=1000 # prefer the packaged runtime over downloads
   # ggml turns off every x86 SIMD default (AVX, AVX2, FMA, ...) when
   # SOURCE_DATE_EPOCH is set, which makepkg does; without it the libraries
-  # match upstream's release builds.
+  # match upstream's release builds, which need AVX2 (Mesh-LLM/mesh-llm#2691).
+  # no-link: ggml does this on purpose for reproducible builds.
   local backend
   for backend in "${_backends[@]}"; do
     env -u SOURCE_DATE_EPOCH \
@@ -111,6 +124,7 @@ check() {
 
 # The bundle stores each soname (libfoo.so, .so.0, .so.0.27.0) as a full copy.
 # The manifest check follows symlinks inside the bundle, so link the duplicates.
+# upstream: Mesh-LLM/mesh-llm#3042
 _link_sonames() {
   local f t
   for f in "$1"/lib/lib*.so "$1"/lib/lib*.so.[0-9]; do
@@ -134,7 +148,7 @@ _install_runtime() {
 }
 
 package_mesh-llm() {
-  depends=(glibc libgcc skippy-native-runtime)
+  depends=(glibc libgcc "skippy-native-runtime=$pkgver")
   optdepends=(
     'skippy-native-runtime-vulkan: Vulkan GPU inference'
     'skippy-native-runtime-cuda: NVIDIA CUDA GPU inference'
@@ -149,7 +163,7 @@ package_mesh-llm() {
 
 package_skippy() {
   pkgdesc="Single-model LLM server with OpenAI and Anthropic APIs, from MeshLLM"
-  depends=(glibc libgcc skippy-native-runtime)
+  depends=(glibc libgcc "skippy-native-runtime=$pkgver")
   optdepends=(
     'skippy-native-runtime-vulkan: Vulkan GPU inference'
     'skippy-native-runtime-cuda: NVIDIA CUDA GPU inference'
@@ -166,6 +180,7 @@ package_skippy-native-runtime() {
   depends=(glibc libgcc libgomp libstdc++)
   # The bundle's manifest.json checksums every library; stripping would break it.
   options=(!strip)
+  install=skippy-native-runtime.install
   _install_runtime cpu
 }
 
@@ -173,6 +188,9 @@ package_skippy-native-runtime-vulkan() {
   pkgdesc="Patched llama.cpp libraries that Skippy and MeshLLM load, Vulkan backend"
   license=('MIT AND (Apache-2.0 OR MIT)')
   depends=(glibc libgcc libgomp libstdc++ vulkan-icd-loader)
+  # MeshLLM only loads a runtime of its own version.
+  conflicts=("mesh-llm<$pkgver" "mesh-llm>$pkgver" "skippy<$pkgver" "skippy>$pkgver")
   options=(!strip)
+  install=skippy-native-runtime.install
   _install_runtime vulkan
 }
