@@ -26,14 +26,18 @@ pkgbase = mesh-llm-git
 	options = !debug
 	source = mesh-llm::git+https://github.com/Mesh-LLM/mesh-llm.git
 	source = llama.cpp::git+https://github.com/ggml-org/llama.cpp.git
+	source = whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git
+	sha256sums = SKIP
 	sha256sums = SKIP
 	sha256sums = SKIP
 
 pkgname = mesh-llm-git
 	depends = glibc
 	depends = libgcc
-	depends = skippy-native-runtime-git
+	depends = skippy-native-runtime-git=0.78.0.r0.g0000000
 	optdepends = skippy-native-runtime-vulkan-git: Vulkan GPU inference
+	optdepends = skippy-native-runtime-cuda-git: NVIDIA CUDA GPU inference
+	optdepends = skippy-native-runtime-rocm-git: AMD ROCm GPU inference
 	provides = mesh-llm
 	conflicts = mesh-llm
 	conflicts = mesh-llm-cuda
@@ -44,13 +48,16 @@ pkgname = skippy-git
 	pkgdesc = Single-model LLM server with OpenAI and Anthropic APIs, from MeshLLM (git main)
 	depends = glibc
 	depends = libgcc
-	depends = skippy-native-runtime-git
+	depends = skippy-native-runtime-git=0.78.0.r0.g0000000
 	optdepends = skippy-native-runtime-vulkan-git: Vulkan GPU inference
+	optdepends = skippy-native-runtime-cuda-git: NVIDIA CUDA GPU inference
+	optdepends = skippy-native-runtime-rocm-git: AMD ROCm GPU inference
 	provides = skippy
 	conflicts = skippy
 
 pkgname = skippy-native-runtime-git
 	pkgdesc = Patched llama.cpp libraries that Skippy and MeshLLM load, CPU backend (git main)
+	install = skippy-native-runtime.install
 	license = MIT AND (Apache-2.0 OR MIT)
 	depends = glibc
 	depends = libgcc
@@ -62,6 +69,7 @@ pkgname = skippy-native-runtime-git
 
 pkgname = skippy-native-runtime-vulkan-git
 	pkgdesc = Patched llama.cpp libraries that Skippy and MeshLLM load, Vulkan backend (git main)
+	install = skippy-native-runtime.install
 	license = MIT AND (Apache-2.0 OR MIT)
 	depends = glibc
 	depends = libgcc

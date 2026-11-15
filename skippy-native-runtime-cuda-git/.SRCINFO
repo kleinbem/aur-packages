@@ -3,6 +3,7 @@ pkgbase = skippy-native-runtime-cuda-git
 	pkgver = 0.78.0.r0.g0000000
 	pkgrel = 1
 	url = https://github.com/Mesh-LLM/mesh-llm
+	install = skippy-native-runtime.install
 	arch = x86_64
 	license = MIT AND (Apache-2.0 OR MIT) AND LicenseRef-NVIDIA-CUDA
 	makedepends = cargo
@@ -24,6 +25,8 @@ pkgbase = skippy-native-runtime-cuda-git
 	options = !debug
 	source = mesh-llm::git+https://github.com/Mesh-LLM/mesh-llm.git
 	source = llama.cpp::git+https://github.com/ggml-org/llama.cpp.git
+	source = whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git
+	sha256sums = SKIP
 	sha256sums = SKIP
 	sha256sums = SKIP
 
