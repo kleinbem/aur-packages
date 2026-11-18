@@ -7,6 +7,7 @@ pkgbase = mesh-llm
 	arch = aarch64
 	license = Apache-2.0 OR MIT
 	checkdepends = curl
+	checkdepends = jq
 	checkdepends = python
 	makedepends = cargo
 	makedepends = cmake
