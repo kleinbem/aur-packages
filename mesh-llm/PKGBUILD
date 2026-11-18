@@ -7,7 +7,7 @@ pkgname=(
   skippy-native-runtime
   skippy-native-runtime-vulkan
 )
-pkgver=0.79.0
+pkgver=0.80.0
 pkgrel=1
 pkgdesc="Pool spare GPU capacity to run LLMs at larger scale"
 arch=(x86_64 aarch64)
@@ -38,7 +38,7 @@ options=(!lto !debug)
 # MeshLLM needs llama.cpp at the release it pins (skippy/llama_cpp/upstream.txt)
 # plus its patch queue, applied with git, so the runtimes are built here rather
 # than from a generic llama.cpp package (nixpkgs' skippy-native-runtime does the same).
-_llamacpp=b12199
+_llamacpp=b12340
 # Speech recognition builds whisper.cpp at the commit upstream pins.
 _whisper=231638a0717b7822784297e5980965ffcec05810
 source=(
@@ -46,8 +46,8 @@ source=(
   "llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=$_llamacpp"
   "whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=$_whisper"
 )
-sha256sums=('60666ab66e50844a658ac0dbbdd9ad206ef7927275e6050619f1634ba96ab569'
-            'ff9169018a2b8a3221c114db0291ab44f010ef68dd9eb7ef9fa9ddc02ab37e43'
+sha256sums=('92a574c2f6b02ffd7bfe8c7592b4cba95998d9dff74414604d15a725cf017c0a'
+            'ef11e9080528bfad88e0de1f6c821edff988296e60aa8a580a7c0cacb9758565'
             '54a11fee8f24cce21f11abdbc0695776736189beb15ba4e21a35dac97e3bf442')
 
 # Runtime backends built from this pkgbase; CUDA and ROCm have their own.

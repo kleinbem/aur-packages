@@ -1,6 +1,6 @@
 pkgbase = mesh-llm
 	pkgdesc = Pool spare GPU capacity to run LLMs at larger scale
-	pkgver = 0.79.0
+	pkgver = 0.80.0
 	pkgrel = 1
 	url = https://github.com/Mesh-LLM/mesh-llm
 	arch = x86_64
@@ -24,17 +24,17 @@ pkgbase = mesh-llm
 	makedepends = vulkan-icd-loader
 	options = !lto
 	options = !debug
-	source = mesh-llm-0.79.0.tar.gz::https://github.com/Mesh-LLM/mesh-llm/archive/refs/tags/v0.79.0.tar.gz
-	source = llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=b12199
+	source = mesh-llm-0.80.0.tar.gz::https://github.com/Mesh-LLM/mesh-llm/archive/refs/tags/v0.80.0.tar.gz
+	source = llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=b12340
 	source = whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#commit=231638a0717b7822784297e5980965ffcec05810
-	sha256sums = 60666ab66e50844a658ac0dbbdd9ad206ef7927275e6050619f1634ba96ab569
-	sha256sums = ff9169018a2b8a3221c114db0291ab44f010ef68dd9eb7ef9fa9ddc02ab37e43
+	sha256sums = 92a574c2f6b02ffd7bfe8c7592b4cba95998d9dff74414604d15a725cf017c0a
+	sha256sums = ef11e9080528bfad88e0de1f6c821edff988296e60aa8a580a7c0cacb9758565
 	sha256sums = 54a11fee8f24cce21f11abdbc0695776736189beb15ba4e21a35dac97e3bf442
 
 pkgname = mesh-llm
 	depends = glibc
 	depends = libgcc
-	depends = skippy-native-runtime=0.79.0
+	depends = skippy-native-runtime=0.80.0
 	optdepends = skippy-native-runtime-vulkan: Vulkan GPU inference
 	optdepends = skippy-native-runtime-cuda: NVIDIA CUDA GPU inference
 	optdepends = skippy-native-runtime-rocm: AMD ROCm GPU inference
@@ -46,7 +46,7 @@ pkgname = skippy
 	pkgdesc = Single-model LLM server with OpenAI and Anthropic APIs, from MeshLLM
 	depends = glibc
 	depends = libgcc
-	depends = skippy-native-runtime=0.79.0
+	depends = skippy-native-runtime=0.80.0
 	optdepends = skippy-native-runtime-vulkan: Vulkan GPU inference
 	optdepends = skippy-native-runtime-cuda: NVIDIA CUDA GPU inference
 	optdepends = skippy-native-runtime-rocm: AMD ROCm GPU inference
@@ -70,8 +70,8 @@ pkgname = skippy-native-runtime-vulkan
 	depends = libgomp
 	depends = libstdc++
 	depends = vulkan-icd-loader
-	conflicts = mesh-llm<0.79.0
-	conflicts = mesh-llm>0.79.0
-	conflicts = skippy<0.79.0
-	conflicts = skippy>0.79.0
+	conflicts = mesh-llm<0.80.0
+	conflicts = mesh-llm>0.80.0
+	conflicts = skippy<0.80.0
+	conflicts = skippy>0.80.0
 	options = !strip
