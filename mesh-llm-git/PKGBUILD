@@ -30,7 +30,7 @@ makedepends=(
   vulkan-headers
   vulkan-icd-loader
 )
-checkdepends=(curl python)
+checkdepends=(curl jq python)
 # !debug: upstream's release profile (thin LTO, one codegen unit) plus debuginfo
 # needs more than 16 GB of RAM to link mesh-llm.
 # no-link: upstream builds without debuginfo, so its builds don't hit this.
@@ -113,6 +113,19 @@ check() {
   cargo test --frozen --package skippy-cli --features dynamic-native-runtime
   target/release/mesh-llm --version
   target/release/skippy --version
+  # mesh-llm lists every runtime built here under its id and path; no GPU needed.
+  local dir listed
+  listed=$(HOME="$srcdir/check-home" MESH_LLM_NATIVE_RUNTIME_CACHE_DIR="$srcdir/check-cache" \
+    MESH_LLM_NATIVE_RUNTIME_BUNDLE_DIR="$srcdir/runtimes" \
+    target/release/mesh-llm --log-format json runtime list --json)
+  for dir in "$srcdir"/runtimes/meshllm-native-runtime-*-arch; do
+    jq -e --arg id "${dir##*/}" --arg path "$dir" \
+      'any(.[]; .native_runtime_id == $id and .path == $path)' <<<"$listed" >/dev/null || {
+      echo "mesh-llm did not list ${dir##*/}:" >&2
+      echo "$listed" >&2
+      return 1
+    }
+  done
 }
 
 # The bundle stores each soname (libfoo.so, .so.0, .so.0.27.0) as a full copy.

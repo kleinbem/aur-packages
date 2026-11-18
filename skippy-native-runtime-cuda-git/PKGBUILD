@@ -77,6 +77,15 @@ build() {
   rm -f "$srcdir"/runtimes/*.tar.gz*
 }
 
+# mesh-llm starts tools/mesh-llm-gpu-benchmark itself and refuses it when it
+# isn't executable.
+check() {
+  local tools
+  tools=$(echo "$srcdir"/runtimes/meshllm-native-runtime-*-cuda*-arch/tools)
+  [[ -d $tools ]] || { echo "no tools/ in the runtime" >&2; return 1; }
+  ! find "$tools" -type f ! -perm -111 | grep . || { echo "tools above are not executable" >&2; return 1; }
+}
+
 # The bundle stores each soname (libfoo.so, .so.0, .so.0.27.0) as a full copy.
 # The manifest check follows symlinks inside the bundle, so link the duplicates.
 # upstream: Mesh-LLM/mesh-llm#3042
