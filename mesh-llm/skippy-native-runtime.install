@@ -1,0 +1,17 @@
+# The runtime is built like upstream's release runtimes, which need these
+# x86 instructions (Mesh-LLM/mesh-llm#2691); without them it dies with SIGILL.
+post_install() {
+  [[ $(uname -m) == x86_64 ]] || return 0
+  local flag missing=()
+  for flag in sse4_2 avx avx2 fma f16c bmi2; do
+    grep -qw "$flag" /proc/cpuinfo || missing+=("$flag")
+  done
+  if (( ${#missing[@]} )); then
+    echo "WARNING: this CPU lacks ${missing[*]}, which the MeshLLM runtime needs." >&2
+    echo "WARNING: mesh-llm and skippy will crash with an illegal instruction." >&2
+  fi
+}
+
+post_upgrade() {
+  post_install
+}
