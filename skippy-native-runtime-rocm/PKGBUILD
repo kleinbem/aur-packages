@@ -94,7 +94,7 @@ check() {
 
 # The bundle stores each soname (libfoo.so, .so.0, .so.0.27.0) as a full copy.
 # The manifest check follows symlinks inside the bundle, so link the duplicates.
-# upstream: Mesh-LLM/mesh-llm#3042
+# upstream: Mesh-LLM/mesh-llm#3109 (merged after 0.80.0; drop on next release)
 _link_sonames() {
   local f t
   for f in "$1"/lib/lib*.so "$1"/lib/lib*.so.[0-9]; do
